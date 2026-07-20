@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LLG Takeover Target Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{--bg:#0f1420;--panel:#171e2e;--panel2:#1d2639;--text:#e8ecf4;--mut:#8b96ab;--acc:#4f8ef7;--gold:#f2b64c;--red:#e5534b;--green:#3fb68b;--bord:#273149}
+*{box-sizing:border-box}body{margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+header{padding:18px 24px 10px}h1{margin:0;font-size:20px}h1 span{color:var(--gold)}.sub{color:var(--mut);font-size:12px;margin-top:4px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;padding:10px 24px}
+.card{background:var(--panel);border:1px solid var(--bord);border-radius:10px;padding:12px 14px}
+.card .v{font-size:22px;font-weight:700;margin-top:2px}.card .l{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.panel{background:var(--panel);border:1px solid var(--bord);border-radius:10px;margin:6px 24px;padding:12px 14px}
+.row{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+.fld{display:flex;flex-direction:column;gap:3px}.fld label{font-size:11px;color:var(--mut)}
+input,select{background:var(--panel2);color:var(--text);border:1px solid var(--bord);border-radius:6px;padding:6px 8px;font-size:13px}
+input[type=number]{width:88px}input[type=text]{width:200px}
+.tierbtn,.btn{background:var(--panel2);border:1px solid var(--bord);color:var(--text);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px}
+.tierbtn.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn:hover{border-color:var(--acc)}
+.chk{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--text)}
+table{width:100%;border-collapse:collapse}
+th{position:sticky;top:0;background:var(--panel2);color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.4px;padding:8px 10px;text-align:right;cursor:pointer;white-space:nowrap;user-select:none}
+th:nth-child(-n+6){text-align:left}
+td{padding:7px 10px;border-top:1px solid var(--bord);text-align:right;white-space:nowrap}
+td:nth-child(-n+6){text-align:left}
+tr.main:hover{background:var(--panel2);cursor:pointer}
+.tier{display:inline-block;width:22px;text-align:center;border-radius:5px;font-weight:700;font-size:12px;padding:2px 0}
+.tA{background:#3d2f10;color:var(--gold)}.tB{background:#15314e;color:#7ab4ff}.tC{background:#1c3a33;color:var(--green)}.tD{background:#333;color:#aaa}.tN{background:#2a2333;color:#b195d8}
+.gap-pos{color:var(--red);font-weight:700}.gap-neg{color:var(--green)}
+.det td{background:#131a29;color:var(--mut);white-space:normal;font-size:12.5px}
+.venue{max-width:280px;overflow:hidden;text-overflow:ellipsis}
+.count{color:var(--mut);font-size:12px;padding:8px 24px}
+.tablewrap{margin:6px 24px 30px;border:1px solid var(--bord);border-radius:10px;overflow:auto;max-height:66vh}
+.conf-lo{color:var(--gold)}
+#more{margin:10px auto;display:block}
+.grp{border-left:2px solid var(--bord);padding-left:12px}
+.grp .t{font-size:11px;color:var(--mut);text-transform:uppercase;margin-bottom:4px}
+#map{height:460px;margin:6px 24px;border:1px solid var(--bord);border-radius:10px;background:var(--panel)}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--panel2);color:var(--text)}
+.leaflet-popup-content{font-size:12.5px;line-height:1.5}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:2px 24px 6px;font-size:12px;color:var(--mut)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:11px;height:11px;border-radius:50%;display:inline-block;border:1px solid rgba(255,255,255,.4)}
+</style>
+</head>
+<body>
+<header>
+<h1>Lucky Lincoln Gaming — <span>Takeover Target Dashboard</span></h1>
+<div class="sub">Illinois VGT footprint · revenue Jun 2025 – May 2026 · FMV inferred by model reconciliation (98.6% validated accuracy) · ILCC owner data Jul 2026 · generated 07/20/2026</div>
+</header>
+<div class="cards">
+<div class="card"><div class="l">Locations shown</div><div class="v" id="cLocs">–</div></div>
+<div class="card"><div class="l">Below-target (targets)</div><div class="v" id="cTgt" style="color:var(--red)">–</div></div>
+<div class="card"><div class="l">Total FMV gap</div><div class="v" id="cGap">–</div></div>
+<div class="card"><div class="l">Targets' avg monthly NTI</div><div class="v" id="cNti">–</div></div>
+<div class="card"><div class="l">Targets' May '26 NTI</div><div class="v" id="cMay">–</div></div>
+</div>
+<div class="panel"><div class="row">
+<div class="grp"><div class="t">Tier cutoffs (avg monthly NTI per VGT)</div><div class="row">
+<div class="fld"><label>A ≥</label><input type="number" id="cutA" value="9200" step="500"></div>
+<div class="fld"><label>B ≥</label><input type="number" id="cutB" value="5000" step="500"></div>
+<div class="fld"><label>C ≥</label><input type="number" id="cutC" value="2500" step="500"></div>
+</div></div>
+<div class="grp"><div class="t">Target FMV per terminal</div><div class="row">
+<div class="fld"><label>A</label><input type="number" id="tgtA" value="22000" step="1000"></div>
+<div class="fld"><label>B</label><input type="number" id="tgtB" value="19000" step="1000"></div>
+<div class="fld"><label>C</label><input type="number" id="tgtC" value="15000" step="1000"></div>
+<div class="fld"><label>D</label><input type="number" id="tgtD" value="8000" step="1000"></div>
+</div></div>
+<div class="fld"><label>Min gap to flag ($)</label><input type="number" id="minGap" value="20000" step="5000"></div>
+</div></div>
+<details class="panel" id="fmvPanel"><summary style="cursor:pointer;color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.5px">Model FMV settings (click to edit) · premium threshold <input type="number" id="premThr" value="20000" step="1000" onclick="event.stopPropagation()"></summary>
+<div id="fmvGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-top:10px"></div>
+<button class="btn" id="fmvReset" style="margin-top:10px">Reset to defaults</button></details>
+<div class="panel"><div class="row">
+<div class="fld"><label>Search venue / city / license #</label><input type="text" id="q" placeholder="e.g. Peoria"></div>
+<div class="fld"><label>Store type</label><select id="stSel"><option value="">All types</option></select></div>
+<div class="fld"><label>Terminal operator</label><select id="opSel"><option value="">All competitors</option></select></div>
+<div class="fld"><label>Region</label><select id="regSel"><option value="">All regions</option></select></div>
+<div class="fld"><label>Tiers</label><div class="row" style="gap:4px">
+<button class="tierbtn on" data-t="A">A</button><button class="tierbtn on" data-t="B">B</button>
+<button class="tierbtn on" data-t="C">C</button><button class="tierbtn on" data-t="D">D</button></div></div>
+<label class="chk"><input type="checkbox" id="onlyBelow" checked> only below-target</label>
+<label class="chk"><input type="checkbox" id="noPrem"> no premium cabinets (≥$20K) only</label>
+<label class="chk"><input type="checkbox" id="declining"> declining YoY (YTD Jan–May) only</label>
+<label class="chk"><input type="checkbox" id="inclLLG"> include LLG locations</label>
+<button class="btn" id="export">⬇ Export CSV</button>
+</div></div>
+<div class="legend" id="legend"></div>
+<div id="map"></div>
+<div class="count" id="count"></div>
+<div class="tablewrap"><table id="tbl"><thead><tr>
+<th data-k="venue">Venue</th><th data-k="dba">DBA</th><th data-k="city">City</th><th data-k="st">Store Type</th><th data-k="to">Current TO</th><th data-k="tier">Tier</th>
+<th data-k="avg">Avg NTI/mo</th><th data-k="ntipt">NTI/VGT</th><th data-k="may">May '26 NTI</th><th data-k="y25">YTD '25</th><th data-k="y26">YTD '26</th><th data-k="yoy">YoY YTD</th><th data-k="n">VGTs</th>
+<th data-k="fmv">Location FMV</th><th data-k="fpt">FMV/VGT</th><th data-k="tfmv">Target FMV</th><th data-k="prem">Prem VGTs</th><th data-k="gap">Gap ▼</th>
+</tr></thead><tbody id="tb"></tbody></table></div>
+<button class="btn" id="more">Show 500 more</button>
+<script>
+const DATA = /*DATA*/;
+const IDX={"BALLY V22": 0.82, "BALLY V32": 0.82, "J43": 0.83, "KONAMI DIMENSION 49": 0.95, "TWINSTAR SL": 0.83, "E20": 0.78, "WMS OTHER": 0.75, "UNKNOWN": 0.85, "MARSX DUAL SLANT": 1.32, "MARSX PORTRAIT": 1.28, "NOVO PANTHERA FV640B": 1.19, "HELIX PLUS UPRIGHT": 1.1, "COSMIC (CM-1)": 1.06, "KASCADA SK-1": 1.04, "INSPIRED VALOR": 1.03, "HELIX PLUS SLANT": 1.0, "PEAK DUAL": 1.0, "WMS BLUEBIRD 2": 0.99, "PEAK 32": 0.98, "WMS S23": 0.97, "PEAK 49": 0.97, "WMS BLADE": 0.97, "TWINSTAR MATRIX": 0.93, "RISE 55": 0.93, "WMS S32": 0.92, "KASCADA PORTRAIT": 0.92, "NOVO LITE FV637C": 0.9, "PRODIGY UPRIGHT": 0.88, "PRODIGY SLANT": 0.85, "NOVO VIP LOUNGE": 0.84, "TWINSTAR": 0.83, "G23 SLANT": 0.82, "BALLY V27": 0.82, "G23 V2 UPRIGHT": 0.78, "AXXIS 23": 0.76, "WMS META XD SLANT": 0.72, "BALLY WAVE": 0.69, "NOVO VIP 2": 0.63, "NOVO VIP LOUNGE CURVE FV838": 0.61, "CRYSTAL SLANT": 0.61, "CRYSTAL DUAL 27": 0.5};const MFMV={"AXXIS 23": 3000.0, "BALLY V22": 2000.0, "BALLY V27": 2000.0, "BALLY V32": 2000.0, "BALLY WAVE": 2000.0, "COSMIC (CM-1)": 25000.0, "CRYSTAL DUAL 27": 4000.0, "CRYSTAL SLANT": 4000.0, "G23 SLANT": 2000.0, "INSPIRED VALOR": 20000.0, "HELIX PLUS SLANT": 10000.0, "HELIX PLUS UPRIGHT": 9500.0, "J43": 2000.0, "KASCADA PORTRAIT": 22000.0, "KASCADA SK-1": 22000.0, "KONAMI DIMENSION 49": 20000.0, "MARSX DUAL SLANT": 25000.0, "MARSX PORTRAIT": 25000.0, "NOVO LITE FV637C": 12500.0, "NOVO PANTHERA FV640B": 12500.0, "NOVO VIP 2": 15000.0, "NOVO VIP LOUNGE": 15000.0, "NOVO VIP LOUNGE CURVE FV838": 15000.0, "PEAK 32": 25000.0, "PEAK 49": 28000.0, "PEAK DUAL": 25000.0, "PRODIGY SLANT": 4500.0, "PRODIGY UPRIGHT": 4500.0, "RISE 55": 30000.0, "TWINSTAR": 5000.0, "TWINSTAR MATRIX": 5000.0, "TWINSTAR SL": 5000.0, "WMS BLADE": 4000.0, "WMS BLUEBIRD 2": 4000.0, "WMS META XD SLANT": 4000.0, "WMS OTHER": 3000.0, "WMS S23": 4500.0, "WMS S32": 4500.0};
+const PREMS=['MARSX DUAL SLANT','MARSX PORTRAIT','COSMIC (CM-1)','KASCADA SK-1','PEAK 32'];
+const FILLER='HELIX PLUS SLANT';
+function proposeMix(tier,n){
+  const share={A:1,B:2/3,C:1/3,D:0}[tier]??0;
+  const np=Math.round(n*share); const mix={};
+  for(let i=0;i<np;i++){const m=PREMS[Math.floor(i/2)%PREMS.length];mix[m]=(mix[m]||0)+1;}
+  if(n-np>0) mix[FILLER]=(mix[FILLER]||0)+(n-np);
+  return mix;}
+function mixIdx(pairs){let s=0,c=0;for(const [m,k] of pairs){s+=(IDX[m]??0.85)*k;c+=k;}return c?s/c:1;}
+function upliftHTML(d){
+  if(d.llg||d.avg==null||d.tier==='N') return '';
+  const prop=proposeMix(d.tier,d.n);
+  const propPairs=Object.entries(prop);
+  const curIdx=mixIdx(d.mm), newIdx=mixIdx(propPairs);
+  const gain=newIdx/curIdx-1;
+  const PT={lo:0.30,mid:0.60,hi:0.85};
+  const lift=k=>gain*PT[k];
+  const nn=k=>d.avg*(1+lift(k));
+  const ann=k=>(nn(k)-d.avg)*12;
+  const mixStr=propPairs.map(([m,k])=>`${m} ×${k}`).join(', ');
+  const propFMV=propPairs.reduce((s,[m,k])=>s+(MFMV[m]||0)*k,0);
+  if(gain<=0.005) return `<br><b>LLG proposed mix (${tierName(d.tier)}):</b> ${mixStr}<br><span style="color:var(--green)">Current equipment already performs at/above the proposed mix (index ${curIdx.toFixed(2)} vs ${newIdx.toFixed(2)}) — hardware is not the takeover angle here.</span>`;
+  return `<br><b>LLG proposed mix (Tier ${d.tier}, ${d.n} VGTs · FMV ${'$'+propFMV.toLocaleString()}):</b> ${mixStr}
+  <br><b>Estimated impact:</b> mix performance index ${curIdx.toFixed(2)} → ${newIdx.toFixed(2)} (+${(100*gain).toFixed(0)}%) × 60% revenue pass-through
+  = est. monthly NTI ${fmt$(d.avg)} → <b>${fmt$(nn('mid'))}</b> (+${(100*lift('mid')).toFixed(1)}%)
+  <br><b>Additional annual NTI: ${fmt$(ann('mid'))}</b> <span style="color:var(--mut)">(range ${fmt$(ann('lo'))} – ${fmt$(ann('hi'))} at 30–85% pass-through)</span>
+  <br><span style="color:var(--mut);font-size:11.5px">Method: per-model indexes = within-venue NTI vs house average across LLG fleet (Jun'25–May'26); pass-through calibrated on 25 LLG cabinet-upgrade events (median 60%). Estimates, not guarantees.</span>`;}
+function tierName(t){return 'Tier '+t;}
+function ownersStr(d){return (d.own||[]).map(([n,r,p])=>`${n}${r?' — '+r:''}${p?' '+p+'%':''}`).join(' · ');}
+function ownersHTML(d){
+  if(!d.ent&&!(d.own&&d.own.length)) return '';
+  const ows=ownersStr(d);
+  return `<br><b>Licensee (ILCC):</b> ${d.ent||'–'}${d.ph?' · ☎ '+d.ph:''}${d.lexp?' · liquor lic. exp. '+d.lexp:''}${ows?`<br><b>Owners:</b> ${ows}`:''}`;}
+
+let sortK='gap', sortD=-1, shown=500;
+const $=id=>document.getElementById(id);
+const REGION_COLORS={
+ 'Central IL':'#4f8ef7','Lake Co (North Burbs)':'#3fb68b','Neenah (West Burbs)':'#f2b64c',
+ 'Northwestern IL':'#b195d8','South Chicago (South Burbs)':'#e5534b','Southern IL':'#4dd0e1',
+ 'West IL':'#ff8fab','Chicago Proper':'#a8d55e'};
+const regColor=r=>REGION_COLORS[r]||'#8b96ab';
+const fmt$=v=>v==null?'–':'$'+Math.round(v).toLocaleString();
+const fmtK=v=>v==null?'–':'$'+(v>=1e6?(v/1e6).toFixed(2)+'M':Math.round(v/1e3)+'K');
+function tierOf(a,c){ if(a==null)return 'N'; if(a>=c[0])return 'A'; if(a>=c[1])return 'B'; if(a>=c[2])return 'C'; return 'D';}
+const FMV0={...MFMV}; let FMVCUR={...MFMV};
+function buildFmvGrid(){
+  const g=$('fmvGrid'); g.innerHTML='';
+  Object.keys(FMVCUR).sort().forEach(m=>{
+    const w=document.createElement('div'); w.className='fld';
+    w.innerHTML=`<label>${m}</label>`;
+    const inp=document.createElement('input'); inp.type='number'; inp.step=500; inp.value=FMVCUR[m]; inp.style.width='110px';
+    inp.addEventListener('input',()=>{FMVCUR[m]=+inp.value||0; shown=500; render();});
+    w.appendChild(inp); g.appendChild(w);});
+}
+function compute(){
+  const thr=+$('premThr').value;
+  DATA.forEach(d=>{ let f=0,p=0;
+    for(const [m,k] of d.mm){ const v=FMVCUR[m]; if(v!=null){f+=v*k; if(v>=thr)p+=k;} }
+    d.fmv=f; d.prem=p; d.yoy=(d.y25&&d.y26)?(d.y26/d.y25-1):null; });
+
+  const cuts=[+$('cutA').value,+$('cutB').value,+$('cutC').value];
+  const tgt={A:+$('tgtA').value,B:+$('tgtB').value,C:+$('tgtC').value,D:+$('tgtD').value,N:0};
+  DATA.forEach(d=>{ d.ntipt=d.avg==null?null:d.avg/d.n; d.tier=tierOf(d.ntipt,cuts); d.tfmv=tgt[d.tier]*d.n; d.fpt=d.fmv/d.n;
+    d.gap=(d.tier==='N')?null:(d.tfmv-d.fmv); });
+}
+function filtered(){
+  const q=$('q').value.toLowerCase(), op=$('opSel').value, reg=$('regSel').value, stv=$('stSel').value, mg=+$('minGap').value;
+  const tiers=new Set([...document.querySelectorAll('.tierbtn.on')].map(b=>b.dataset.t));
+  return DATA.filter(d=>{
+    if(!$('inclLLG').checked && d.llg) return false;
+    if(op && d.to!==op) return false;
+    if(stv && (stv==='(unknown)'?d.st!=null:d.st!==stv)) return false;
+    if(reg && d.region!==reg) return false;
+    if($('noPrem').checked && d.prem>0) return false;
+    if($('declining').checked && !(d.yoy!=null && d.yoy<0)) return false;
+    if(!tiers.has(d.tier) && d.tier!=='N') return false;
+    
+    if($('onlyBelow').checked && !(d.gap!=null && d.gap>=mg)) return false;
+    if(q && !(d.venue+' '+(d.dba||'')+' '+(d.city||'')+' '+d.lic+' '+(d.ent||'')+' '+(d.own||[]).map(o=>o[0]).join(' ')).toLowerCase().includes(q)) return false;
+    return true;});
+}
+function render(){
+  compute();
+  const rows=filtered().sort((a,b)=>{const va=a[sortK],vb=b[sortK];
+    if(va==null)return 1; if(vb==null)return -1;
+    return (typeof va==='string'?va.localeCompare(vb):va-vb)*sortD;});
+  const tgts=rows.filter(d=>d.gap!=null&&d.gap>=+$('minGap').value);
+  $('cLocs').textContent=rows.length.toLocaleString();
+  $('cTgt').textContent=tgts.length.toLocaleString();
+  $('cGap').textContent=fmtK(tgts.reduce((s,d)=>s+d.gap,0));
+  $('cNti').textContent=fmtK(tgts.length?tgts.reduce((s,d)=>s+(d.avg||0),0)/tgts.length:null);
+  $('cMay').textContent=fmtK(tgts.length?tgts.reduce((s,d)=>s+(d.may||0),0)/tgts.length:null);
+  $('count').textContent=`${rows.length.toLocaleString()} locations · sorted by ${sortK} · click a row for machine detail`;
+  const tb=$('tb'); tb.innerHTML='';
+  rows.slice(0,shown).forEach((d,i)=>{
+    const tr=document.createElement('tr'); tr.className='main';
+    const flag=d.gap!=null&&d.gap>=+$('minGap').value;
+    tr.innerHTML=`<td class="venue" title="${d.venue}">${d.venue}</td><td class="venue" title="${d.dba||''}">${d.dba||'–'}</td><td>${d.city||'–'}</td><td>${d.st||'–'}</td><td>${d.to||'–'}</td>
+    <td><span class="tier t${d.tier}">${d.tier==='N'?'?':d.tier}</span></td>
+    <td>${fmt$(d.avg)}</td><td>${fmt$(d.ntipt)}</td><td>${fmt$(d.may)}</td><td>${fmt$(d.y25)}</td><td>${fmt$(d.y26)}</td><td class="${d.yoy<0?'gap-pos':d.yoy>0?'gap-neg':''}">${d.yoy==null?'–':(d.yoy>0?'+':'')+(100*d.yoy).toFixed(1)+'%'}</td><td>${d.n}</td><td>${fmt$(d.fmv)}</td><td>${fmt$(d.fpt)}</td>
+    <td>${d.tier==='N'?'–':fmt$(d.tfmv)}</td>
+    <td>${d.prem>0?d.prem:'<span class="gap-pos">0</span>'}</td>
+    <td class="${flag?'gap-pos':d.gap!=null&&d.gap<0?'gap-neg':''}">${d.gap==null?'–':fmt$(d.gap)}</td>`;
+    tr.onclick=()=>{
+      if(d.lat!=null&&d.lng!=null&&mapInit){
+        map.flyTo([d.lat,d.lng],15,{duration:.8});
+        const mk=MARKERS[d.lic]; if(mk) setTimeout(()=>mk.openPopup(),850);
+      }
+      const nx=tr.nextSibling;
+      if(nx&&nx.className==='det'){nx.remove();return;}
+      const dr=document.createElement('tr');dr.className='det';
+      dr.innerHTML=`<td colspan="18">License ${d.lic} · live since ${d.live||'?'} · YTD Jan–May NTI: ${fmt$(d.y25)} ('25) → ${fmt$(d.y26)} ('26) · model-match confidence ${d.conf==null?'?':(d.conf*100).toFixed(0)+'%'}${d.conf!=null&&d.conf<0.75?' <span class="conf-lo">⚠ verify models</span>':''}<br><b>Machines:</b> ${d.mix}${ownersHTML(d)}</td>`;
+      tr.after(dr);};
+    tb.appendChild(tr);});
+  $('more').style.display=rows.length>shown?'block':'none';
+  drawMap(rows);
+}
+// --- map ---
+let map, markerLayer, mapInit=false; const MARKERS={};
+function initMap(){
+  map=L.map('map',{preferCanvas:true}).setView([40.0,-89.2],7);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
+  markerLayer=L.layerGroup().addTo(map); mapInit=true;
+}
+function drawMap(rows){
+  if(!mapInit) initMap();
+  markerLayer.clearLayers();
+  for(const k in MARKERS) delete MARKERS[k];
+  const pts=rows.filter(d=>d.lat!=null&&d.lng!=null);
+  pts.forEach(d=>{
+    MARKERS[d.lic]=L.circleMarker([d.lat,d.lng],{radius:5,color:'#0b0f18',weight:1,
+      fillColor:regColor(d.region),fillOpacity:.9})
+     .bindPopup(`<b>${d.venue}</b><br>${d.addr||d.city||''} · ${d.region||'—'}<br>${d.to||''}<br>
+       Tier ${d.tier} · ${d.n} VGTs · avg ${fmt$(d.avg)}/mo<br>
+       FMV ${fmt$(d.fmv)} · gap <b>${d.gap==null?'–':fmt$(d.gap)}</b>${d.ent?`<br>Owner: ${d.ent}${d.ph?' · ☎ '+d.ph:''}`:''}`)
+     .addTo(markerLayer);
+  });
+  $('count').textContent=`${rows.length.toLocaleString()} locations (${pts.length.toLocaleString()} mapped) · sorted by ${sortK} · click a row for detail, a pin for summary`;
+}
+// wiring
+['q','opSel','stSel','regSel','minGap','onlyBelow','noPrem','declining','inclLLG','cutA','cutB','cutC','tgtA','tgtB','tgtC','tgtD'].forEach(id=>$(id).addEventListener('input',()=>{shown=500;render();}));
+document.querySelectorAll('.tierbtn').forEach(b=>b.onclick=()=>{b.classList.toggle('on');shown=500;render();});
+document.querySelectorAll('th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;
+  sortD=(sortK===k)?-sortD:(k==='venue'||k==='dba'||k==='city'||k==='st'||k==='to'||k==='tier'?1:-1);sortK=k;render();});
+$('more').onclick=()=>{shown+=500;render();};
+$('premThr').addEventListener('input',()=>{shown=500;render();});
+$('fmvReset').onclick=()=>{FMVCUR={...FMV0};buildFmvGrid();render();};
+buildFmvGrid();
+$('export').onclick=()=>{
+  const rows=filtered().sort((a,b)=>(b.gap??-1e12)-(a.gap??-1e12));
+  const head='License,Venue,DBA,City,StoreType,Current TO,Tier,AvgMonthlyNTI,NTIperVGT,May2026NTI,YTD2025NTI,YTD2026NTI,YoYPct,VGTs,LocationFMV,FMVperVGT,TargetFMV,Gap,PremiumVGTs,Confidence,Machines,OwnerEntity,Owners,Phone,LiquorLicExp';
+  const csv=[head].concat(rows.map(d=>[d.lic,`"${d.venue}"`,`"${(d.dba||'').replace(/"/g,"'")}"`,`"${d.city||''}"`,`"${d.st||''}"`,`"${d.to||''}"`,d.tier,d.avg,d.ntipt==null?'':Math.round(d.ntipt),d.may,d.y25,d.y26,d.yoy==null?'':(100*d.yoy).toFixed(1),d.n,d.fmv,Math.round(d.fpt),d.tfmv,d.gap,d.prem,d.conf,`"${d.mix}"`,`"${d.ent||''}"`,`"${ownersStr(d).replace(/"/g,"'")}"`,`"${d.ph||''}"`,`"${d.lexp||''}"`].join(','))).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='takeover_targets.csv';a.click();};
+// operator dropdown
+const ops=[...new Set(DATA.filter(d=>!d.llg).map(d=>d.to).filter(Boolean))].sort();
+ops.forEach(o=>{const e=document.createElement('option');e.value=e.textContent=o;$('opSel').appendChild(e);});
+// store type dropdown
+const sts=[...new Set(DATA.map(d=>d.st).filter(Boolean))].sort();
+sts.forEach(s=>{const e=document.createElement('option');e.value=e.textContent=s;$('stSel').appendChild(e);});
+if(DATA.some(d=>d.st==null)){const e=document.createElement('option');e.value='(unknown)';e.textContent='(unknown)';$('stSel').appendChild(e);}
+// region dropdown + legend (only regions present in data)
+const regs=[...new Set(DATA.map(d=>d.region).filter(Boolean))].sort();
+regs.forEach(r=>{const e=document.createElement('option');e.value=e.textContent=r;$('regSel').appendChild(e);});
+$('legend').innerHTML=regs.map(r=>`<span><i style="background:${regColor(r)}"></i>${r}</span>`).join('');
+render();
+</script>
+</body>
+</html>
